@@ -1,0 +1,13 @@
+[project]
+name = "nse-telegram-bot"
+version = "0.1.0"
+description = "Telegram stock analysis bot"
+dependencies = [
+    "pyTelegramBotAPI",
+    "flask",
+    "requests",
+    "pytz"
+]
+
+[tool.vercel]
+entrypoint = "bot:app"
