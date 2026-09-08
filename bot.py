@@ -23,11 +23,7 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🟢 Bot is online! Kisi bhi NSE stock ka symbol bhejein (jaise: RELIANCE, TCS, INFY, SBIN) ya /gapup try karein.")
-
-@bot.message_handler(commands=['gapup'])
-def gap_up_analysis(message):
-    bot.reply_to(message, "📊 Pre-market gap analysis: RELIANCE (+2.45% - Very Good), INFY (-1.15% - Bad).")
+    bot.reply_to(message, "🟢 Bot online hai! Stock ka symbol bhejein (jaise: RELIANCE, TCS, MOIL).")
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
@@ -35,26 +31,23 @@ def handle_stock_query(message):
     if raw_query.startswith('/'):
         return
         
-    # Extra spaces remove karne ke liye
     query = raw_query.replace(" ", "")
-    
-    # Kisi bhi NSE stock ke liye automatic .NS extension jodna
     ticker_symbol = f"{query}.NS"
     
     try:
-        stock = yf.Ticker(ticker_symbol)
-        hist = stock.history(period="5d")
+        # Direct download method (yfinance ka yeh tareeka zyada stable hota hai)
+        df = yf.download(ticker_symbol, period="5d", progress=False)
         
-        if hist.empty:
-            bot.reply_to(message, f"❌ Stock '{raw_query}' nahi mila. Kripya sahi NSE symbol dalein (jaise: RELIANCE, TCS, SBIN).")
+        if df.empty or 'Close' not in df.columns:
+            bot.reply_to(message, f"❌ Stock '{raw_query}' ka data nahi mil paya. Yahoo Finance par yeh symbol unavailable ho sakta hai.")
             return
 
-        current_price = hist['Close'].iloc[-1]
-        prev_close = stock.info.get('previousClose', current_price)
+        current_price = float(df['Close'].iloc[-1])
+        prev_close = float(df['Close'].iloc[-2]) if len(df) > 1 else current_price
         change_pct = ((current_price - prev_close) / prev_close) * 100
         
-        day_high = hist['High'].iloc[-1]
-        day_low = hist['Low'].iloc[-1]
+        day_high = float(df['High'].iloc[-1])
+        day_low = float(df['Low'].iloc[-1])
 
         if change_pct > 2.0:
             grade = "🟢 *VERY GOOD*"
@@ -76,7 +69,7 @@ def handle_stock_query(message):
         bot.reply_to(message, reply_msg, parse_mode="Markdown")
         
     except Exception as e:
-        bot.reply_to(message, f"⚠️ Data fetch karne mein error aaya. Kripya dobara koshish karein.")
+        bot.reply_to(message, f"⚠️ Error: {str(e)[:100]}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
