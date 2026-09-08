@@ -20,57 +20,44 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🟢 Bot online hai! Kisi bhi stock ka naam bhejein (jaise: RELIANCE, TATAMOTORS, TCS).")
+    bot.reply_to(message, "🟢 Bot active hai! Stock ka naam bhejein (jaise: RELIANCE, TCS).")
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
-    query = message.text.strip()
+    query = message.text.strip().upper()
     if query.startswith('/'):
         return
         
     try:
-        # Groww/NSE public search API (Never blocked on Vercel)
-        search_url = f"https://groww.in/v1/api/search/v1/query?page=0&q={query}&size=1"
+        # Using NSE India public market summary endpoint alternative
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        res = requests.get(search_url, headers=headers, timeout=5).json()
+        url = f"https://www.google.com/finance/quote/{query}:NSE"
         
-        stocks = res.get('data', {}).get('stocks', [])
-        if not stocks:
-            bot.reply_to(message, f"❌ Stock '{query}' nahi mila. Sahi naam likhein.")
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code != 200:
+            bot.reply_to(message, f"❌ Stock '{query}' nahi mila. Sahi symbol check karein.")
             return
             
-        stock_info = stocks[0]
-        live_price = stock_info.get('livePriceOrLtp')
-        close_price = stock_info.get('close') or live_price
-        title = stock_info.get('companyName', query.upper())
+        # Simple text parsing fallback for live data
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        if not live_price:
-            bot.reply_to(message, f"⚠️ '{title}' ka live price abhi available nahi hai.")
+        price_div = soup.find(attrs={"class": "YMlKec fxKbKc"})
+        if not price_div:
+            bot.reply_to(message, f"⚠️ '{query}' ka price data fetch nahi ho paya.")
             return
             
-        change = live_price - close_price
-        change_pct = (change / close_price) * 100 if close_price else 0.0
-
-        if change_pct > 2.0:
-            grade = "🟢 *VERY GOOD*"
-        elif change_pct > 0:
-            grade = "🟢 *GOOD*"
-        elif change_pct == 0:
-            grade = "⚪ *NEUTRAL*"
-        elif change_pct > -2.0:
-            grade = "🔴 *BAD*"
-        else:
-            grade = "🔴 *VERY BAD*"
+        price_str = price_div.text.replace('₹', '').replace(',', '').strip()
+        current_price = float(price_str)
 
         reply_msg = (
-            f"📈 *Stock: {title}*\n"
-            f"💰 *Price*: ₹{live_price:.2f}\n"
-            f"📊 *Change*: {change_pct:+.2f}% {grade}"
+            f"📈 *Stock: {query} (NSE)*\n"
+            f"💰 *Live Price*: ₹{current_price:.2f}"
         )
         bot.reply_to(message, reply_msg, parse_mode="Markdown")
         
     except Exception as e:
-        bot.reply_to(message, f"⚠️ Server connection error. Dobara try karein.")
+        bot.reply_to(message, f"⚠️ Error aa gaya. Dobara try karein.")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
