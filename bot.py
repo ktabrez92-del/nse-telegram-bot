@@ -2,30 +2,28 @@ import os
 from flask import Flask, request
 import telebot
 import yfinance as yf
-from datetime import datetime
 import pytz
 
 TOKEN = "8744426734:AAFUI8IA9p5cW9SdPeXOeJ5Zy59oT78b5xQ"
 GROUP_CHAT_ID = -1003915913228
 
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
 IST = pytz.timezone('Asia/Kolkata')
 
 @app.route('/')
 def home():
-    return "Bot is active and running on Vercel!"
+    return "Telegram Bot is active on Vercel!"
 
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
-        json_str = request.get_data().decode('UTF-8')
-        update = telebot.types.Update.de_json(json_str)
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
         return '', 200
-    else:
-        return 'Forbidden', 403
+    return 'Invalid request', 403
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -34,14 +32,6 @@ def send_welcome(message):
 @bot.message_handler(commands=['gapup'])
 def gap_up_analysis(message):
     bot.reply_to(message, "📊 Pre-market gap analysis: RELIANCE (+2.45% - Very Good), INFY (-1.15% - Bad).")
-
-@bot.message_handler(commands=['sendalert'])
-def send_group_alert(message):
-    try:
-        bot.send_message(GROUP_CHAT_ID, "🚨 *Automatic Group Alert Test*: Bot is active and monitoring NSE/BSE markets!", parse_mode="Markdown")
-        bot.reply_to(message, "✅ Group par alert bhej diya gaya hai!")
-    except Exception as e:
-        bot.reply_to(message, f"❌ Group par message bhejne mein error aaya: {e}")
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
@@ -90,3 +80,4 @@ def handle_stock_query(message):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+    
