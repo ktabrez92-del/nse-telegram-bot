@@ -1,8 +1,10 @@
 {
-  "version": 2,
-  "routes": [
+  "buildCommand": "",
+  "outputDirectory": "",
+  "framework": null,
+  "rewrites": [
     {
-      "src": "/(.*)",
+      "source": "/(.*)",
       "destination": "bot.py"
     }
   ]
