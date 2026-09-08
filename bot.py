@@ -23,7 +23,7 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🟢 Bot is online! Stock ka naam bhejein (jaise: RELIANCE) ya /gapup try karein.")
+    bot.reply_to(message, "🟢 Bot is online! Kisi bhi NSE stock ka symbol bhejein (jaise: RELIANCE, TCS, INFY, SBIN) ya /gapup try karein.")
 
 @bot.message_handler(commands=['gapup'])
 def gap_up_analysis(message):
@@ -31,10 +31,14 @@ def gap_up_analysis(message):
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
-    query = message.text.upper().strip()
-    if query.startswith('/'):
+    raw_query = message.text.upper().strip()
+    if raw_query.startswith('/'):
         return
         
+    # Extra spaces remove karne ke liye
+    query = raw_query.replace(" ", "")
+    
+    # Kisi bhi NSE stock ke liye automatic .NS extension jodna
     ticker_symbol = f"{query}.NS"
     
     try:
@@ -42,7 +46,7 @@ def handle_stock_query(message):
         hist = stock.history(period="5d")
         
         if hist.empty:
-            bot.reply_to(message, f"❌ Stock '{query}' nahi mila. Sahi NSE symbol dalein.")
+            bot.reply_to(message, f"❌ Stock '{raw_query}' nahi mila. Kripya sahi NSE symbol dalein (jaise: RELIANCE, TCS, SBIN).")
             return
 
         current_price = hist['Close'].iloc[-1]
