@@ -1,5 +1,5 @@
-Flask==3.0.2
-pyTelegramBotAPI==4.16.1
-requests==2.31.0
-beautifulsoup4==4.12.3
-pytz==2024.1
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "dependencies": {}
+}
