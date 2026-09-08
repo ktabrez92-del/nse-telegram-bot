@@ -9,6 +9,23 @@ GROUP_CHAT_ID = -1003915913228
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
+# Complete mapping for full names and common symbols
+SYMBOL_MAP = {
+    "TATA MOTORS": "TATAMOTORS",
+    "TATAMOTORS": "TATAMOTORS",
+    "SONATA SOFTWARE": "SONATSOFTW",
+    "SONATASOFTWARE": "SONATSOFTW",
+    "RELIANCE": "RELIANCE",
+    "SBI": "SBIN",
+    "SBIN": "SBIN",
+    "TCS": "TCS",
+    "INFY": "INFY",
+    "WIPRO": "WIPRO",
+    "ITC": "ITC",
+    "TATA STEEL": "TATASTEEL",
+    "TATASTEEL": "TATASTEEL"
+}
+
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
     if request.method == 'POST':
@@ -20,7 +37,7 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🟢 Bot online hai! Stock ka symbol bhejein (jaise: TATAMOTORS, RELIANCE, SBIN).")
+    bot.reply_to(message, "🟢 Bot online hai! Stock ka naam ya symbol bhejein (jaise: Tata motors, Sonata software, Reliance).")
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
@@ -28,10 +45,11 @@ def handle_stock_query(message):
     if raw_query.startswith('/'):
         return
         
-    query = raw_query.replace(" ", "")
+    # Clean query and map to correct NSE symbol
+    clean_query = raw_query.replace("  ", " ")
+    query = SYMBOL_MAP.get(raw_query, SYMBOL_MAP.get(clean_query, clean_query.replace(" ", "")))
     
     try:
-        # Yahoo Finance alternative lightweight API endpoint (Vercel friendly)
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{query}.NS?interval=1d&range=5d"
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=5)
@@ -39,7 +57,7 @@ def handle_stock_query(message):
         
         result = data.get('chart', {}).get('result')
         if not result:
-            bot.reply_to(message, f"❌ Stock '{raw_query}' nahi mila. Sahi symbol check karein.")
+            bot.reply_to(message, f"❌ Stock '{raw_query}' nahi mila. Sahi NSE symbol check karein.")
             return
             
         meta = result[0]['meta']
@@ -68,7 +86,7 @@ def handle_stock_query(message):
             grade = "🔴 *VERY BAD*"
 
         reply_msg = (
-            f"📈 *Stock: {query}*\n"
+            f"📈 *Stock: {raw_query.title()}*\n"
             f"💰 *Price*: ₹{current_price:.2f}\n"
             f"📊 *Change*: {change_pct:+.2f}% {grade}\n"
             f"📌 *Day High*: ₹{day_high:.2f} | *Day Low*: ₹{day_low:.2f}"
