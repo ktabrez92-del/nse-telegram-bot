@@ -12,18 +12,14 @@ app = Flask(__name__)
 
 IST = pytz.timezone('Asia/Kolkata')
 
-@app.route('/')
-def home():
-    return "Telegram Bot is active on Vercel!"
-
-@app.route(f'/{TOKEN}', methods=['POST'])
+@app.route('/', methods=['POST', 'GET'])
 def webhook():
-    if request.headers.get('content-type') == 'application/json':
+    if request.method == 'POST':
         json_string = request.get_data().decode('utf-8')
         update = telebot.types.Update.de_json(json_string)
         bot.process_new_updates([update])
         return '', 200
-    return 'Invalid request', 403
+    return "Telegram Bot is active on Vercel!"
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
