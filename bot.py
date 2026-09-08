@@ -4,7 +4,7 @@ import telebot
 import requests
 from bs4 import BeautifulSoup
 
-TOKEN = "8744426734:AAFUI8IA9p5cW9SdPeXOeJ5Zy59oT78b5xQ"
+TOKEN = "8744426734:AAHnITXqS8yTC-S2wOk8FSewqAiQudBwN2o"
 GROUP_CHAT_ID = -1003915913228
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
