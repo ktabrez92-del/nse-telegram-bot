@@ -9,23 +9,6 @@ GROUP_CHAT_ID = -1003915913228
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
-# Symbol mapping
-SYMBOL_MAP = {
-    "TATA MOTORS": "TATAMOTORS",
-    "TATAMOTORS": "TATAMOTORS",
-    "SONATA SOFTWARE": "SONATSOFTW",
-    "SONATASOFTWARE": "SONATSOFTW",
-    "RELIANCE": "RELIANCE",
-    "SBI": "SBIN",
-    "SBIN": "SBIN",
-    "TCS": "TCS",
-    "INFY": "INFY",
-    "WIPRO": "WIPRO",
-    "ITC": "ITC",
-    "TATA STEEL": "TATASTEEL",
-    "TATASTEEL": "TATASTEEL"
-}
-
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
     if request.method == 'POST':
@@ -37,48 +20,36 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🟢 Bot online hai! Stock ka symbol bhejein (jaise: TATAMOTORS, RELIANCE, TCS).")
+    bot.reply_to(message, "🟢 Bot online hai! Kisi bhi stock ka naam bhejein (jaise: RELIANCE, TATAMOTORS, TCS).")
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
-    raw_query = message.text.upper().strip()
-    if raw_query.startswith('/'):
+    query = message.text.strip()
+    if query.startswith('/'):
         return
         
-    clean_query = raw_query.replace("  ", " ")
-    query = SYMBOL_MAP.get(raw_query, SYMBOL_MAP.get(clean_query, clean_query.replace(" ", "")))
-    
     try:
-        # Session with full browser headers to prevent Yahoo blocking
-        session = requests.Session()
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/json",
-            "Referer": "https://finance.yahoo.com"
-        })
+        # Groww/NSE public search API (Never blocked on Vercel)
+        search_url = f"https://groww.in/v1/api/search/v1/query?page=0&q={query}&size=1"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        res = requests.get(search_url, headers=headers, timeout=5).json()
         
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{query}.NS?interval=1d&range=5d"
-        response = session.get(url, timeout=6)
-        data = response.json()
-        
-        result = data.get('chart', {}).get('result')
-        if not result:
-            bot.reply_to(message, f"❌ Stock '{raw_query}' nahi mila. Sahi NSE symbol check karein.")
+        stocks = res.get('data', {}).get('stocks', [])
+        if not stocks:
+            bot.reply_to(message, f"❌ Stock '{query}' nahi mila. Sahi naam likhein.")
             return
             
-        meta = result[0]['meta']
-        current_price = meta.get('regularMarketPrice')
-        prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
+        stock_info = stocks[0]
+        live_price = stock_info.get('livePriceOrLtp')
+        close_price = stock_info.get('close') or live_price
+        title = stock_info.get('companyName', query.upper())
         
-        if not current_price or not prev_close:
-            bot.reply_to(message, f"⚠️ '{raw_query}' ka live price data abhi available nahi hai.")
+        if not live_price:
+            bot.reply_to(message, f"⚠️ '{title}' ka live price abhi available nahi hai.")
             return
             
-        change_pct = ((current_price - prev_close) / prev_close) * 100
-        
-        indicators = result[0]['indicators']['quote'][0]
-        day_high = max(filter(None, indicators.get('high', [current_price])))
-        day_low = min(filter(None, indicators.get('low', [current_price])))
+        change = live_price - close_price
+        change_pct = (change / close_price) * 100 if close_price else 0.0
 
         if change_pct > 2.0:
             grade = "🟢 *VERY GOOD*"
@@ -92,15 +63,14 @@ def handle_stock_query(message):
             grade = "🔴 *VERY BAD*"
 
         reply_msg = (
-            f"📈 *Stock: {query}*\n"
-            f"💰 *Price*: ₹{current_price:.2f}\n"
-            f"📊 *Change*: {change_pct:+.2f}% {grade}\n"
-            f"📌 *Day High*: ₹{day_high:.2f} | *Day Low*: ₹{day_low:.2f}"
+            f"📈 *Stock: {title}*\n"
+            f"💰 *Price*: ₹{live_price:.2f}\n"
+            f"📊 *Change*: {change_pct:+.2f}% {grade}"
         )
         bot.reply_to(message, reply_msg, parse_mode="Markdown")
         
     except Exception as e:
-        bot.reply_to(message, f"⚠️ Connection error aa gaya. Dobara koshish karein.")
+        bot.reply_to(message, f"⚠️ Server connection error. Dobara try karein.")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
