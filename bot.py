@@ -2,8 +2,9 @@ import os
 from flask import Flask, request
 import telebot
 import requests
+from bs4 import BeautifulSoup
 
-TOKEN = "TOKEN = "8846968829:AAH1JyEqdPsTyUtPP9dL5J4uHnkQYXKLNfo"
+TOKEN = "8744426734:AAFUI8IA9p5cW9SdPeXOeJ5Zy59oT78b5xQ"
 GROUP_CHAT_ID = -1003915913228
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
@@ -20,7 +21,7 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🟢 Bot active hai! Stock ka naam bhejein (jaise: RELIANCE, TCS).")
+    bot.reply_to(message, "🟢 Bot active hai! Stock ka naam bhejein (jaise: RELIANCE, TCS, TATAMOTORS).")
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
@@ -29,7 +30,6 @@ def handle_stock_query(message):
         return
         
     try:
-        # Using NSE India public market summary endpoint alternative
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         url = f"https://www.google.com/finance/quote/{query}:NSE"
         
@@ -38,11 +38,9 @@ def handle_stock_query(message):
             bot.reply_to(message, f"❌ Stock '{query}' nahi mila. Sahi symbol check karein.")
             return
             
-        # Simple text parsing fallback for live data
-        from bs4 import BeautifulSoup
         soup = BeautifulSoup(response.text, 'html.parser')
-        
         price_div = soup.find(attrs={"class": "YMlKec fxKbKc"})
+        
         if not price_div:
             bot.reply_to(message, f"⚠️ '{query}' ka price data fetch nahi ho paya.")
             return
