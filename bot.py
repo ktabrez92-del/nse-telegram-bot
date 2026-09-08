@@ -9,7 +9,7 @@ GROUP_CHAT_ID = -1003915913228
 bot = telebot.TeleBot(TOKEN, threaded=False)
 app = Flask(__name__)
 
-# Complete mapping for full names and common symbols
+# Symbol mapping
 SYMBOL_MAP = {
     "TATA MOTORS": "TATAMOTORS",
     "TATAMOTORS": "TATAMOTORS",
@@ -37,7 +37,7 @@ def webhook():
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, "🟢 Bot online hai! Stock ka naam ya symbol bhejein (jaise: Tata motors, Sonata software, Reliance).")
+    bot.reply_to(message, "🟢 Bot online hai! Stock ka symbol bhejein (jaise: TATAMOTORS, RELIANCE, TCS).")
 
 @bot.message_handler(func=lambda message: True)
 def handle_stock_query(message):
@@ -45,14 +45,20 @@ def handle_stock_query(message):
     if raw_query.startswith('/'):
         return
         
-    # Clean query and map to correct NSE symbol
     clean_query = raw_query.replace("  ", " ")
     query = SYMBOL_MAP.get(raw_query, SYMBOL_MAP.get(clean_query, clean_query.replace(" ", "")))
     
     try:
+        # Session with full browser headers to prevent Yahoo blocking
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+            "Referer": "https://finance.yahoo.com"
+        })
+        
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{query}.NS?interval=1d&range=5d"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=5)
+        response = session.get(url, timeout=6)
         data = response.json()
         
         result = data.get('chart', {}).get('result')
@@ -71,8 +77,8 @@ def handle_stock_query(message):
         change_pct = ((current_price - prev_close) / prev_close) * 100
         
         indicators = result[0]['indicators']['quote'][0]
-        day_high = max(indicators['high']) if 'high' in indicators and indicators['high'] else current_price
-        day_low = min(indicators['low']) if 'low' in indicators and indicators['low'] else current_price
+        day_high = max(filter(None, indicators.get('high', [current_price])))
+        day_low = min(filter(None, indicators.get('low', [current_price])))
 
         if change_pct > 2.0:
             grade = "🟢 *VERY GOOD*"
@@ -86,7 +92,7 @@ def handle_stock_query(message):
             grade = "🔴 *VERY BAD*"
 
         reply_msg = (
-            f"📈 *Stock: {raw_query.title()}*\n"
+            f"📈 *Stock: {query}*\n"
             f"💰 *Price*: ₹{current_price:.2f}\n"
             f"📊 *Change*: {change_pct:+.2f}% {grade}\n"
             f"📌 *Day High*: ₹{day_high:.2f} | *Day Low*: ₹{day_low:.2f}"
@@ -94,7 +100,7 @@ def handle_stock_query(message):
         bot.reply_to(message, reply_msg, parse_mode="Markdown")
         
     except Exception as e:
-        bot.reply_to(message, f"⚠️ Connection error. Dobara koshish karein.")
+        bot.reply_to(message, f"⚠️ Connection error aa gaya. Dobara koshish karein.")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
